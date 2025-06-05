@@ -1,0 +1,162 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Regalos Amor Supabase 💖</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-image: url('images/hello-kitty-bg.jpg');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      background-color: rgba(255, 228, 236, 0.9);
+      padding: 2rem;
+      text-align: center;
+    }
+    .hidden { display: none; }
+    .card {
+      background: white;
+      padding: 1rem;
+      margin: 1rem auto;
+      max-width: 300px;
+      border-radius: 1rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    button {
+      background: #ec407a;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      margin-top: 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    input {
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      border: 1px solid #ccc;
+    }
+    ul { list-style: none; padding: 0; }
+    li { margin: 0.5rem 0; }
+    li button {
+      background: #ff6b6b;
+      margin-left: 10px;
+      padding: 0.2rem 0.5rem;
+    }
+  </style>
+</head>
+
+</head>
+<body>
+  <h2>¡Hola amor! 💖 Tus puntos: <span id="pointsDisplay"></span></h2>
+  <div id="secretButtons" style="display: none;">
+    <button onclick="addPoints()">+10 puntos (secreto)</button>
+  </div>
+  <h3>Premios disponibles</h3>
+  <div id="rewardsContainer"></div>
+  <h4>🎁 Premios reclamados</h4>
+  <ul id="claimedList"></ul>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
+  <script>
+    const supabase = supabase.createClient(
+      "https://bqruebzqtehumftwebhj.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxcnVlYnpxdGVodW1mdHdlYmhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwODYwNTcsImV4cCI6MjA2NDY2MjA1N30.DVFxk-l8QPn79pdPJrjHnd-GazxPbq9xH1zjlf5gB98"
+    );
+
+    const isAdmin = new URLSearchParams(window.location.search).get("admin") === "1";
+    if (isAdmin) document.getElementById("secretButtons").style.display = "block";
+
+    let points = 0;
+    let claimed = [];
+
+    const rewards = [
+      { id: 1, title: 'Cena romántica', points: 100 },
+      { id: 2, title: 'Cine', points: 50 },
+      { id: 3, title: 'Bono de ropa', points: 150 },
+      { id: 4, title: 'Skin Care', points: 200 },
+      { id: 5, title: 'Cámara Instantánea', points: 300 },
+      { id: 6, title: 'Helado', points: 20 },
+      { id: 7, title: 'Zapatos Bosi', points: 200 }
+    ];
+
+    async function loadData() {
+      const { data } = await supabase.from('estado').select('*').order('id', { ascending: false }).limit(1);
+      if (data && data.length > 0) {
+        points = data[0].puntos;
+        claimed = data[0].reclamados || [];
+        render();
+      }
+    }
+
+    function render() {
+      document.getElementById('pointsDisplay').textContent = points;
+      const container = document.getElementById('rewardsContainer');
+      container.innerHTML = '';
+      rewards.forEach(r => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <h3>${r.title}</h3>
+          <p>${r.points} puntos</p>
+          <button onclick="redeem(${r.id})" ${points < r.points ? 'disabled' : ''}>Canjear</button>
+        `;
+        container.appendChild(card);
+      });
+
+      const claimedList = document.getElementById('claimedList');
+      claimedList.innerHTML = '';
+      claimed.forEach((item, index) => {
+        const li = document.createElement('li');
+        li.textContent = item;
+        if (isAdmin) {
+          const btn = document.createElement('button');
+          btn.textContent = '❌';
+          btn.onclick = () => removeClaimed(index);
+          li.appendChild(btn);
+        }
+        claimedList.appendChild(li);
+      });
+    }
+
+    window.redeem = async function(id) {
+      const reward = rewards.find(r => r.id === id);
+      if (reward && points >= reward.points) {
+        const newPoints = points - reward.points;
+        const newClaimed = [...claimed, reward.title];
+        await supabase.from('estado').update({
+          puntos: newPoints,
+          reclamados: newClaimed
+        }).eq('id', 1);
+        await loadData();
+      }
+    };
+
+    window.removeClaimed = async function(index) {
+      const updated = [...claimed];
+      updated.splice(index, 1);
+      await supabase.from('estado').update({
+        reclamados: updated
+      }).eq('id', 1);
+      await loadData();
+    };
+
+    window.addPoints = async function() {
+      const newPoints = points + 10;
+      await supabase.from('estado').update({
+        puntos: newPoints
+      }).eq('id', 1);
+      await loadData();
+    };
+
+    window.onload = loadData;
+  </script>
+</body>
+</html>
